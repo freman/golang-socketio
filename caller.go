@@ -7,7 +7,7 @@ import (
 
 type caller struct {
 	Func        reflect.Value
-	Args        reflect.Type
+	Args        []reflect.Type
 	ArgsPresent bool
 	Out         bool
 }
@@ -40,8 +40,11 @@ func newCaller(f interface{}) (*caller, error) {
 	if fType.NumIn() == 1 {
 		curCaller.Args = nil
 		curCaller.ArgsPresent = false
-	} else if fType.NumIn() == 2 {
-		curCaller.Args = fType.In(1)
+	} else if fType.NumIn() >= 2 {
+		curCaller.Args = make([]reflect.Type, fType.NumIn()-1)
+		for i := range curCaller.Args {
+			curCaller.Args[i] = fType.In(i + 1)
+		}
 		curCaller.ArgsPresent = true
 	} else {
 		return nil, ErrorCallerNot2Args
@@ -53,23 +56,27 @@ func newCaller(f interface{}) (*caller, error) {
 /**
 returns function parameter as it is present in it using reflection
 */
-func (c *caller) getArgs() interface{} {
-	return reflect.New(c.Args).Interface()
+func (c *caller) getArgs() []interface{} {
+	res := make([]interface{}, len(c.Args))
+	for i, v := range c.Args {
+		res[i] = reflect.New(v).Interface()
+	}
+	return res
 }
 
 /**
 calls function with given arguments from its representation using reflection
 */
-func (c *caller) callFunc(h *Channel, args interface{}) []reflect.Value {
+func (c *caller) callFunc(h *Channel, args []interface{}) []reflect.Value {
 	//nil is untyped, so use the default empty value of correct type
 	if args == nil {
 		args = c.getArgs()
 	}
-
-	a := []reflect.Value{reflect.ValueOf(h), reflect.ValueOf(args).Elem()}
-	if !c.ArgsPresent {
-		a = a[0:1]
+	vals := make([]reflect.Value, len(args)+1)
+	vals[0] = reflect.ValueOf(h)
+	for i, v := range args {
+		vals[i+1] = reflect.ValueOf(v).Elem()
 	}
 
-	return c.Func.Call(a)
+	return c.Func.Call(vals)
 }

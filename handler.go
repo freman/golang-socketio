@@ -2,9 +2,11 @@ package gosocketio
 
 import (
 	"encoding/json"
-	"github.com/graarh/golang-socketio/protocol"
-	"sync"
+	"fmt"
 	"reflect"
+	"sync"
+
+	"github.com/graarh/golang-socketio/protocol"
 )
 
 const (
@@ -48,7 +50,6 @@ func (m *methods) On(method string, f interface{}) error {
 	m.messageHandlersLock.Lock()
 	defer m.messageHandlersLock.Unlock()
 	m.messageHandlers[method] = c
-
 	return nil
 }
 
@@ -58,7 +59,6 @@ Find message processing function associated with given method
 func (m *methods) findMethod(method string) (*caller, bool) {
 	m.messageHandlersLock.RLock()
 	defer m.messageHandlersLock.RUnlock()
-
 	f, ok := m.messageHandlers[method]
 	return f, ok
 }
@@ -76,7 +76,7 @@ func (m *methods) callLoopEvent(c *Channel, event string) {
 		return
 	}
 
-	f.callFunc(c, &struct{}{})
+	f.callFunc(c, nil)
 }
 
 /**
@@ -94,13 +94,14 @@ func (m *methods) processIncomingMessage(c *Channel, msg *protocol.Message) {
 		}
 
 		if !f.ArgsPresent {
-			f.callFunc(c, &struct{}{})
+			f.callFunc(c, nil)
 			return
 		}
 
 		data := f.getArgs()
-		err := json.Unmarshal([]byte(msg.Args), &data)
+		err := json.Unmarshal([]byte("["+msg.Args+"]"), &data)
 		if err != nil {
+			fmt.Printf("Error processing message. msg.Args: %v, data: %v, err: %v\n", msg.Args, data, err)
 			return
 		}
 
@@ -120,10 +121,9 @@ func (m *methods) processIncomingMessage(c *Channel, msg *protocol.Message) {
 			if err != nil {
 				return
 			}
-
 			result = f.callFunc(c, data)
 		} else {
-			result = f.callFunc(c, &struct{}{})
+			result = f.callFunc(c, nil)
 		}
 
 		ack := &protocol.Message{

@@ -3,9 +3,10 @@ package gosocketio
 import (
 	"encoding/json"
 	"errors"
-	"github.com/graarh/golang-socketio/protocol"
 	"log"
 	"time"
+
+	"github.com/graarh/golang-socketio/protocol"
 )
 
 var (
@@ -32,7 +33,6 @@ func send(msg *protocol.Message, c *Channel, args interface{}) error {
 
 		msg.Args = string(json)
 	}
-
 	command, err := protocol.Encode(msg)
 	if err != nil {
 		return err
